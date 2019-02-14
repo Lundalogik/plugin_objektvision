@@ -1,0 +1,4 @@
+[
+  "plugin_objektvision/endpoints/endpoint_test.py::test_return_zero_if_no_companies",
+  "plugin_objektvision/endpoints/endpoint_test.py::test_return_one_if_one_company_present"
+]
