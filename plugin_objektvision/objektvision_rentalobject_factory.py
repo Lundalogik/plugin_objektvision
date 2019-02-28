@@ -3,11 +3,11 @@ import base64 as b64
 
 
 def get_rentalobject(app, idrentalobject):
-    rentalobject = lq.execute_query(rentalobject_query(idrentalobject),
-                                    app.connection,
-                                    app.limetypes,
-                                    app.acl,
-                                    app.user)
+    ro = lq.execute_query(rentalobject_query(idrentalobject),
+                          app.connection,
+                          app.limetypes,
+                          app.acl,
+                          app.user)
 
     pictures = lq.execute_query(
                         middlepicture_query(idrentalobject),
@@ -23,17 +23,18 @@ def get_rentalobject(app, idrentalobject):
                         app.acl,
                         app.user)
 
-    rentalobject['objects'][0]['pictures'] = fetch_pictures_and_metadata(
+    ro['objects'][0]['pictures'] = fetch_pictures_and_metadata(
                                                         pictures['objects'],
                                                         app)
-    rentalobject['objects'][0]['documents'] = fetch_documents_and_metadata(
+    ro['objects'][0]['documents'] = fetch_documents_and_metadata(
                                                         documents['objects'],
                                                         app)
-    rentalobject['objects'][0]['coworker']['picture'] = fetch_contact_image(
-                                        rentalobject['objects'][0]['coworker'],
-                                        app)
+    if ro['objects'][0]['coworker']['id'] is not None:
+        ro['objects'][0]['coworker']['picture'] = fetch_contact_image(
+                                            ro['objects'][0]['coworker'],
+                                            app)
 
-    return rentalobject
+    return ro
 
 
 def rentalobject_query(idrentalobject):
@@ -43,6 +44,7 @@ def rentalobject_query(idrentalobject):
             'object': {
                 'id': None,
                 'property': {
+                    'id': None,
                     'name': None
                 },
                 'streetaddress': None,
@@ -60,7 +62,12 @@ def rentalobject_query(idrentalobject):
                     'email': None,
                     'phone': None,
                     'cellphone': None,
-                    'picture': None
+                    'picture': None,
+                    'region': {
+                        'id': None,
+                        'ovusername': None,
+                        'ovpassword': None
+                    }
                 },
                 'ingress': None,
                 'floor': None,
@@ -75,7 +82,8 @@ def rentalobject_query(idrentalobject):
                 'parking': None,
                 'service': None,
                 'other': None,
-                'built': None
+                'built': None,
+                'objektvisionserverid': None
             }
         },
         'filter': {
@@ -96,6 +104,7 @@ def middlepicture_query(idrentalobject):
         'limetype': 'middle_picture',
         'responseFormat': {
             'object': {
+                'id': None,
                 'picturename': None,
                 'picturetype': None,
                 'comment': None,
@@ -166,6 +175,7 @@ def fetch_pictures_and_metadata(middle_pictures, app):
         picture['fileextension'] = picture_file.extension
         picture['content'] = b64file.decode('utf-8')
         picture['description'] = pic['comment']
+        picture['mp_id'] = pic['id']
         picture['id'] = pic['pictures']
         picture['category'] = pic['picturetype']
         picture['publishon'] = pic['publishon']
@@ -205,6 +215,7 @@ def fetch_contact_image(coworker, app):
 
     image['description'] = 'testar'
     image['content'] = content
-    image['clientid'] = 1001  # TODO
+    image['clientid'] = lime_coworker.properties.name.value.replace(' ', '.') \
+        + '.' + image_file.extension
 
     return image

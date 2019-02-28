@@ -1,14 +1,12 @@
 import logging
 import zeep
 from zeep import Client
-from zeep.plugins import HistoryPlugin
 import flask
-import datetime
-from lime_type.unit_of_work import create_unit_of_work
 import sys
 import lime_config as lc
 import plugin_objektvision.objektvision_rentalobject_factory as rof
 import plugin_objektvision.objektvision_estate_factory as ef
+import plugin_objektvision.objektvision_helper as oh
 
 logger = logging.getLogger(__name__)
 
@@ -17,88 +15,71 @@ vendorkey = lc.config['plugins']['plugin_objektvision'].get('vendorkey')
 
 
 def publish_to_ov(idrentalobject, application, public):
-    ###############################################
-    history = HistoryPlugin()
-
-    client = Client(wsdl=wsdl, plugins=[history])
+    client = Client(wsdl=wsdl)
     rentalobject = rof.get_rentalobject(application, idrentalobject)
+    valid_response = oh.validate_rentalobject(rentalobject)
+    if not valid_response['valid']:
+        return flask.Response(valid_response['errormessage'], 400)
+    userid = rentalobject['objects'][0]['coworker']['region']['ovusername']
+    password = rentalobject['objects'][0]['coworker']['region']['ovpassword']
     estate = ef.get_estate(client, rentalobject, public)
-    client.service.Login(vendorkey, 15162, "lundalogik")
-    # for attachment in estate['Attachments']:
-    #     print(attachment['ClientID'])
-    #     print(attachment['Description'])
-    #     print(attachment['Category'])
+    client.service.Login(vendorkey, userid, password)
 
     response = client.service.Update(estate)
-    print('--------------------------')
-    print(history.last_sent)
-    print('--------------------------')
-    print(history.last_received)
-    print('--------------------------')
-    print(response)
-    print('--------------------------')
-    # return response
-    ###############################################
+
     if response.Success:
         try:
-            ro = application.limetypes.rentalobject.get(idrentalobject)
-            ro.properties.published_objektvision.value = True
-            ro.properties.date_obj.value = datetime.datetime.now()
-            ro.properties.objektvisionserverid.value = response.ServerID
-            uow = application.unit_of_work()
-            uow.add(ro)
-            uow.commit()
+            oh.update_lime_objects(rentalobject,
+                                   application,
+                                   public,
+                                   True,
+                                   response.ServerID)
             return {'result': response.ServerID}
         except Exception:
             e = sys.exc_info()[0]
-            print(e)
+            logger.error('Something went wrong when updating Lime, \
+                errormessage: ' + str(e))
             return {'result': 'Something went wrong when updating the \
-                    rentalobject in lime'}
+                rentalobject in lime'}
     else:
         return flask.Response(response.Message, 500)
 
 
 def remove_from_ov(idrentalobject, application):
-    ro = application.limetypes.rentalobject.get(idrentalobject)
-
     client = zeep.Client(wsdl=wsdl)
+    rentalobject = rof.get_rentalobject(application, idrentalobject)
+    userid = rentalobject['objects'][0]['coworker']['region']['ovusername']
+    password = rentalobject['objects'][0]['coworker']['region']['ovpassword']
 
-    client.service.Login(vendorkey, 15162, "lundalogik")
+    client.service.Login(vendorkey, userid, password)
     response = client.service.DeleteByServerID(
-                    str(ro.properties.objektvisionserverid.value))
-
+                    str(rentalobject['objects'][0]['objektvisionserverid']))
     if response:
         try:
-            ro.properties.published_objektvision.value = False
-            ro.properties.date_obj.value = None
-            ro.properties.removedobjektvision.value = datetime.datetime.now()
-            ro.properties.objektvisionserverid.value = None
-            uow = create_unit_of_work(application)
-            uow.add(ro)
-            uow.commit()
+            oh.update_lime_objects(rentalobject,
+                                   application,
+                                   False,
+                                   False)
             return {'result': response}
         except Exception:
             e = sys.exc_info()[0]
-            print(e)
+            logger.error('Something went wrong when updating Lime, \
+                errormessage: ' + str(e))
+            return {'result': 'Something went wrong when updating the \
+                rentalobject in lime'}
     else:
         return flask.Response(response, 500)
 
 
-def get_leads_from_ov(application):
+def get_leads_from_ov(userid, password, application):
     client = zeep.Client(wsdl=wsdl)
 
-    client.service.Login(vendorkey, 15162, "lundalogik")
+    client.service.Login(vendorkey, userid, password)
     response = client.service.GetLeads()
-    # import ipdb;ipdb.set_trace()
     if response is not None:
-        uow = create_unit_of_work(application)
-        for resp in response:
-            # print(resp)
-            # print(resp.ClientID)
-            ro = application.limetypes.rentalobject.get(int(resp.ClientID))
-            lead = application.limetypes.objectneed(
-                responsablename=resp.ProspectFullName)
-            lead.properties.rentalobject.attach(ro)
-            uow.add(ro)
-            uow.add(lead)
-        uow.commit()
+        try:
+            oh.create_leads_in_lime(response, application)
+        except Exception:
+            e = sys.exc_info()[0]
+            logger.error('Something went wrong when fetchin leads, \
+                errormessage: ' + str(e))

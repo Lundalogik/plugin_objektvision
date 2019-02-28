@@ -34,7 +34,7 @@ def get_estate(client, rentalobject, public):
         Status=displayMode,
         Description=properties['ingress'],
         ExtendedDescription=properties['localdescription'],
-        Floor=properties['floor'],
+        Floor=properties['floor'] if properties['floor'] is not None else 0,
         Design=properties['floorplan'],
         BuildYear=properties['built'] if properties['built'] != '' else 0,
         OtherInfo=properties['other'],
@@ -62,7 +62,6 @@ def get_estate(client, rentalobject, public):
         City=properties['postalcity'],
         MunicipalityCode=properties['municipality']['code'])
     attachments = get_attachment_list(properties, client)
-    print(attachments)
     estate = estate_type(
         ClientID=properties['id'],
         DisplayedClientID=198000005,
@@ -130,6 +129,7 @@ def get_attachment_list(rentalobject, client):
         attachment_list.append({'AbstractAttachment': image})
 
     for document in rentalobject['documents']:
+        # TODO Handle AttachmentKeepContent
         if document['fileextension'] == '.pdf':
             content = b64_content_type(
                 Base64EncodedContent=document['content'])

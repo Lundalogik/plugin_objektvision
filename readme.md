@@ -19,6 +19,8 @@ Setting up a virtual environment:
 C:\my-plugin>C:\Python34\python -m venv venv
 C:\my-plugin>venv\scripts\activate
 C:\my-plugin>pip install -r requirements_dev.txt
+or
+C:\my-plugin>pip install -r requirements_prod.txt
 ```
 
 ### Linux

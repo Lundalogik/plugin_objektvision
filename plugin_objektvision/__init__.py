@@ -15,7 +15,8 @@ def default_config():
     """
 
     return {'wsdl': 'http://import.test.objektvision.se/soap/server.asmx?wsdl',
-            'vendorkey': 'Lime v2.0'}
+            'vendorkey': 'Lime v2.0',
+            'baseurl': 'http://www.test.objektvision.se/Beskriv/'}
 
 
 try:
