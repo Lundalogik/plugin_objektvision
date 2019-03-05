@@ -208,14 +208,16 @@ def fetch_contact_image(coworker, app):
     image = {}
     lime_coworker = app.limetypes.coworker.get(coworker['id'])
     image_file = lime_coworker.properties.picture.fetch()
-    stream = image_file.stream
-    stream.seek(0)
-    b64file = b64.b64encode(stream.read())
-    content = b64file.decode('utf-8')
+    if image_file is None:
+        return None
+    else:
+        stream = image_file.stream
+        stream.seek(0)
+        b64file = b64.b64encode(stream.read())
+        content = b64file.decode('utf-8')
 
-    image['description'] = 'testar'
-    image['content'] = content
-    image['clientid'] = lime_coworker.properties.name.value.replace(' ', '.') \
-        + '.' + image_file.extension
+        image['content'] = content
+        image['clientid'] = lime_coworker.properties.name.value \
+            .replace(' ', '.') + '.' + image_file.extension
 
-    return image
+        return image

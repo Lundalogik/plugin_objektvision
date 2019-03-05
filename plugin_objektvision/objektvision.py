@@ -1,5 +1,4 @@
 import logging
-import zeep
 from zeep import Client
 import flask
 import sys
@@ -46,7 +45,7 @@ def publish_to_ov(idrentalobject, application, public):
 
 
 def remove_from_ov(idrentalobject, application):
-    client = zeep.Client(wsdl=wsdl)
+    client = Client(wsdl=wsdl)
     rentalobject = rof.get_rentalobject(application, idrentalobject)
     userid = rentalobject['objects'][0]['coworker']['region']['ovusername']
     password = rentalobject['objects'][0]['coworker']['region']['ovpassword']
@@ -72,7 +71,7 @@ def remove_from_ov(idrentalobject, application):
 
 
 def get_leads_from_ov(userid, password, application):
-    client = zeep.Client(wsdl=wsdl)
+    client = Client(wsdl=wsdl)
 
     client.service.Login(vendorkey, userid, password)
     response = client.service.GetLeads()
