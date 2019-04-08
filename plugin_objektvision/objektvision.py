@@ -16,6 +16,7 @@ vendorkey = lc.config['plugins']['plugin_objektvision'].get('vendorkey')
 def publish_to_ov(idrentalobject, application, public):
     client = Client(wsdl=wsdl)
     rentalobject = rof.get_rentalobject(application, idrentalobject)
+
     valid_response = oh.validate_rentalobject(rentalobject)
     if not valid_response['valid']:
         return flask.Response(valid_response['errormessage'], 400)

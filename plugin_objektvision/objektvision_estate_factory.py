@@ -3,20 +3,20 @@ import datetime
 
 def get_estate(client, rentalobject, public):
     properties = rentalobject['objects'][0]
+    factory = client.type_factory('ns0')
 
-    estate_type = client.get_type('ns0:Estate')
-    estate = estate_type(
+    attachmentlist = get_attachment_list(properties, client, factory)
+    return factory.Estate(
         ClientID=properties['id'],
         DisplayedClientID=198000005,
         Modified=datetime.datetime.now(),
-        Contact=get_contact(properties, client),
+        Contact=get_contact(properties, client, factory),
         InternetDisplay=get_internetdisplay_array(properties,
                                                   client,
+                                                  factory,
                                                   public),
-        Address=get_address(properties, client),
-        Attachments=get_attachment_list(properties, client))
-
-    return estate
+        Address=get_address(properties, client, factory),
+        Attachments=factory.ArrayOfAbstractAttachment(attachmentlist))
 
 
 def get_premise_type(premise_types_from_lime):
@@ -53,98 +53,80 @@ def get_image_category(category):
     return cat
 
 
-def get_attachment_list(rentalobject, client):
-    image_type = client.get_type('ns0:AttachmentImage')
-    file_type = client.get_type('ns0:AttachmentFile')
-    b64_content_type = client.get_type('ns0:AttachmentBase64Content')
-    keep_content_type = client.get_type('ns0:AttachmentKeepContent')
+def get_attachment_list(rentalobject, client, factory):
     attachment_list = []
     for picture in rentalobject['pictures']:
         if picture['published_to_ov'] == 0:
-            content = b64_content_type(
+            content = factory.AttachmentBase64Content(
                 Base64EncodedContent=picture['content'])
         else:
-            content = keep_content_type()
+            content = factory.AttachmentKeepContent()
         categories = get_image_category(picture['category'])
-        image = image_type(
+        image = factory.AttachmentImage(
             Category=categories,
             ClientID='{}.{}'.format(picture['id'], picture['fileextension']),
             Description=picture['description'],
             Content=content)
-        attachment_list.append({'AbstractAttachment': image})
+        attachment_list.append(image)
 
     for document in rentalobject['documents']:
-        if document['fileextension'] == '.pdf':
-            content = b64_content_type(
+        if document['fileextension'] == 'pdf':
+            content = factory.AttachmentBase64Content(
                 Base64EncodedContent=document['content'])
-            doc = file_type(
-                Type={'Type': 'Undefined'},
+            doc = factory.AttachmentFile(
+                Type='PDF',
                 ClientID='{}.{}'.format(document['id'],
                                         document['fileextension']),
                 Description=document['description'],
                 Content=content)
-            attachment_list.append({'AbstractAttachment': doc})
+            attachment_list.append(doc)
 
     return attachment_list
 
 
-def get_address(properties, client):
-    address_type = client.get_type('ns0:Address')
-
-    return address_type(
-            StreetAddress=properties['streetaddress'],
-            PostalCode=properties['zipcode'],
-            City=properties['postalcity'],
-            MunicipalityCode=properties['municipality']['code'])
+def get_address(properties, client, factory):
+    return factory.Address(
+        StreetAddress=properties['streetaddress'],
+        PostalCode=properties['zipcode'],
+        City=properties['postalcity'],
+        MunicipalityCode=properties['municipality']['code'])
 
 
-def get_contact(properties, client):
-    contact_type = client.get_type('ns0:Contact')
-    contact_image_type = client.get_type('ns0:ContactImage')
-    b64_content_type = client.get_type('ns0:AttachmentBase64Content')
-
+def get_contact(properties, client, factory):
     if properties['coworker']['picture'] is None:
-        contact = contact_type(
+        contact = factory.Contact(
             Name=properties['coworker']['name'],
             Email=properties['coworker']['email'],
-            CellPhone=properties['coworker']['cellphone'],
             Phone=properties['coworker']['phone'])
     else:
-        contact_image_content = b64_content_type(
+        contact_image_content = factory.AttachmentBase64Content(
             Base64EncodedContent=properties['coworker']['picture']['content'])
-        contact_image = contact_image_type(
+        contact_image = factory.ContactImage(
             Content=contact_image_content,
             ClientID=properties['coworker']['picture']['clientid'])
-        contact = contact_type(
+        contact = factory.Contact(
             Name=properties['coworker']['name'],
             Email=properties['coworker']['email'],
-            CellPhone=properties['coworker']['cellphone'],
             Phone=properties['coworker']['phone'],
             Image=contact_image)
 
     return contact
 
 
-def get_internetdisplay_array(properties, client, public):
-    premise_type = client.get_type('ns0:Premise')
-    displayMode_type = client.get_type('ns0:DisplayMode')
-    surrounding_type = client.get_type('ns0:CommercialSurroundings')
-    internetDisplayArray_type = client.get_type('ns0:ArrayOfInternetDisplay')
-    leadFormMode_type = client.get_type('ns0:LeadFormMode')
-    leadFormMode = leadFormMode_type("Off")
-
+def get_internetdisplay_array(properties, client, factory, public):
+    leadFormMode = factory.LeadFormMode("Off")
     if public:
-        displayMode = displayMode_type("Public")
+        displayMode = factory.DisplayMode("Public")
     else:
-        displayMode = displayMode_type("Private")
+        displayMode = factory.DisplayMode("Private")
 
     premiseTypes = get_premise_type(properties['premisestypes'])
-    surroundings = surrounding_type(
+    surroundings = factory.CommercialSurroundings(
         Nature=properties['environment'],
         ParkingAndGarage=properties['parking'],
         ServiceInNeighbourhood=properties['service'],
         Transportation=properties['communication'])
-    premise = premise_type(
+    premise = factory.Premise(
         Types=premiseTypes,
         AdjustablePlan=False,
         SwapDemand=False,
@@ -161,4 +143,4 @@ def get_internetdisplay_array(properties, client, public):
         Rooms=0,
         RebuildYear=0)
 
-    return internetDisplayArray_type([premise])
+    return factory.ArrayOfInternetDisplay([premise])

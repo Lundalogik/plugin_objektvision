@@ -18,8 +18,8 @@ def validate_rentalobject(ro):
         error_string += '"Area från" saknas\n'
     if ro['objects'][0]['area_to'] is None:
         error_string += '"Area tom" saknas\n'
-
-    if ro['objects'][0]['premisestypes'] is None:
+    # TODO Den här valideringen fungerar inte på set-fields
+    if not ro['objects'][0]['premisestypes']:
         error_string += '"Objekttyper publicering" saknas\n'
     if ro['objects'][0]['streetaddress'] is None:
         error_string += '"Gatuadress" saknas\n'
